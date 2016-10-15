@@ -8,4 +8,6 @@ import java.util.ArrayList;
 public interface DataListener {
     void denied(ArrayList<String> result);
     void granted(ArrayList<String> result);
+    void overlayGranted();
+    void overlayDenied();
 }

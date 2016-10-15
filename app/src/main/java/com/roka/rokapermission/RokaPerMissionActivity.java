@@ -1,10 +1,12 @@
 package com.roka.rokapermission;
 
+import android.annotation.TargetApi;
 import android.content.DialogInterface;
 import android.content.Intent;
 import android.content.pm.PackageManager;
 import android.net.Uri;
 import android.os.Bundle;
+import android.provider.Settings;
 import android.support.annotation.NonNull;
 import android.support.annotation.Nullable;
 import android.support.v4.app.ActivityCompat;
@@ -19,7 +21,8 @@ import java.util.ArrayList;
  */
 public class RokaPerMissionActivity extends AppCompatActivity {
 
-    private final int SETTING_INTENT_CALLBACK = 1111;
+    private final int SETTING_PERMISSION_INTENT_CALLBACK = 1111;
+    private final int SETTING_OVERLAY_INTENT_CALLBACK = 1512;
 
     private ArrayList<String> mGrantedList = null;
     private ArrayList<String> mDeniedList = null;
@@ -27,8 +30,12 @@ public class RokaPerMissionActivity extends AppCompatActivity {
 
     @Override
     protected void onActivityResult(int requestCode, int resultCode, Intent data) {
-        if (requestCode == SETTING_INTENT_CALLBACK) {
+        if (requestCode == SETTING_PERMISSION_INTENT_CALLBACK) {
             //ActivityCompat.requestPermissions(this, permission, 0);
+            finish();
+            overridePendingTransition(0, 0);
+        } else if (requestCode == SETTING_OVERLAY_INTENT_CALLBACK) {
+            resultOverlayPermission();
             finish();
             overridePendingTransition(0, 0);
         }
@@ -39,15 +46,31 @@ public class RokaPerMissionActivity extends AppCompatActivity {
     protected void onCreate(@Nullable Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         getWindow().addFlags(WindowManager.LayoutParams.FLAG_NOT_TOUCHABLE);
+
         permission = getIntent().getStringArrayExtra("permission");
-        ActivityCompat.requestPermissions(this, permission, 0);
+        checkOverlayOrPermission();
+
+        if (permission != null && permission.length > 0) {
+            checkPermissionDialogMsgSetting();
+            ActivityCompat.requestPermissions(this, permission, 0);
+        }
+
+        if (getIntent().getBooleanExtra("overlay", false)) {
+            checkOverlayDialogMsgSetting();
+            // TODO : 오버레이 허가 체크
+            if (isOverlay()) {
+                RokaPermission.mDataListener.overlayGranted();
+            } else {
+                showOverlayDialog(getIntent().getStringExtra("overlayMsg"));
+            }
+        }
     }
 
     private void getApplicationSetting() {
-        Intent intent = new Intent(android.provider.Settings.ACTION_APPLICATION_DETAILS_SETTINGS);
+        Intent intent = new Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS);
         intent.setData(Uri.fromParts("package", getIntent().getStringExtra("package"), null));
         intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
-        startActivityForResult(intent, SETTING_INTENT_CALLBACK);
+        startActivityForResult(intent, SETTING_PERMISSION_INTENT_CALLBACK);
 
     }
 
@@ -66,8 +89,8 @@ public class RokaPerMissionActivity extends AppCompatActivity {
             }
         }
 
-        if (mDeniedList != null && !mDeniedList.isEmpty() && getIntent().getBooleanExtra("setting", false)) {
-            showDialog(getIntent().getStringExtra("msg"));
+        if (mDeniedList != null && !mDeniedList.isEmpty()) {
+            showPermissionDialog(getIntent().getStringExtra("msg"));
 
         } else {
             deniedListener();
@@ -76,6 +99,52 @@ public class RokaPerMissionActivity extends AppCompatActivity {
             overridePendingTransition(0, 0);
         }
     }
+
+    private void checkPermissionDialogMsgSetting() {
+        // TODO : 다이얼로그 셋팅이 되어있는지 확인한다.
+        if (!getIntent().getBooleanExtra("setting", false)) {
+            throw new Error("You should set method setPermissionMsgSetting()");
+        }
+    }
+
+    private void checkOverlayDialogMsgSetting() {
+        // TODO : 다이얼로그 셋팅이 되어있는지 확인한다.
+        if (!getIntent().getBooleanExtra("overlaySetting", false)) {
+            throw new Error("You should set method setOverlayMsgSetting()");
+        }
+    }
+
+    private void checkOverlayOrPermission() {
+        // TODO : 퍼미션 요청 또는 오버레이 요청 권한이 동시일 경우 에러를 발생 시킨다.
+        if (permission != null && getIntent().getBooleanExtra("overlay", false)) {
+            throw new Error("You should request Overlay or Permission One!!");
+        }
+    }
+
+    @TargetApi(23)
+    private void setOverlayPermission() {
+        Intent intent = new Intent(Settings.ACTION_MANAGE_OVERLAY_PERMISSION);
+        intent.setData(Uri.fromParts("package", getIntent().getStringExtra("package"), null));
+        intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
+        startActivityForResult(intent, SETTING_OVERLAY_INTENT_CALLBACK);
+
+    }
+
+    @TargetApi(23)
+    private boolean isOverlay() {
+        // TODO : 오버레이가 허가되어 있으면 true
+        return Settings.canDrawOverlays(this);
+    }
+
+    @TargetApi(23)
+    private void resultOverlayPermission() {
+        if (isOverlay()) {
+            RokaPermission.mDataListener.overlayGranted();
+        } else {
+            RokaPermission.mDataListener.overlayDenied();
+        }
+    }
+
 
     private void grantedListener() {
         if (mGrantedList != null && !mGrantedList.isEmpty()) {
@@ -89,7 +158,7 @@ public class RokaPerMissionActivity extends AppCompatActivity {
         }
     }
 
-    private void showDialog(String msg) {
+    private void showPermissionDialog(String msg) {
         new AlertDialog.Builder(this)
                 .setMessage(msg)
                 .setCancelable(false)
@@ -104,6 +173,25 @@ public class RokaPerMissionActivity extends AppCompatActivity {
                     @Override
                     public void onClick(DialogInterface dialog, int which) {
                         getApplicationSetting();
+                    }
+                })
+                .show();
+    }
+
+    private void showOverlayDialog(String msg) {
+        new AlertDialog.Builder(this)
+                .setMessage(msg)
+                .setCancelable(false)
+                .setPositiveButton(getIntent().getStringExtra("overlayPostiveBtn"), new DialogInterface.OnClickListener() {
+                    @Override
+                    public void onClick(DialogInterface dialog, int which) {
+                        setOverlayPermission();
+                    }
+                })
+                .setNegativeButton(getIntent().getStringExtra("overlayNegativeBtn"), new DialogInterface.OnClickListener() {
+                    @Override
+                    public void onClick(DialogInterface dialogInterface, int i) {
+                        RokaPermission.mDataListener.overlayDenied();
                     }
                 })
                 .show();
