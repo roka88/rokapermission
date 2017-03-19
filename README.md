@@ -2,7 +2,7 @@
 안드로이드 6.0+ 이상 퍼미션 허가를 위한 라이브러리
 간단한 퍼미션 체크 및 오버레이 체크와 요청
 
-![myimage-alt-tag](http://lycle.co.kr/images/t_1475674282616_user_event.png)
+![myimage-alt-tag](http://file.lycle.co.kr/images/t_1475674282616_user_event.png)
 
 #Gradle
 
