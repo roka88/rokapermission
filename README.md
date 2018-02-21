@@ -14,12 +14,13 @@ repositories {
 
 <pre>
 dependencies {
-    compile 'com.github.roka88:rokapermission:0.0.3'
+    compile 'com.github.roka88:rokapermission:0.0.4'
 }
 </pre>
 
 #Version
 <pre>
+0.0.4 의존성 변경
 0.0.3 Android Target SDK 24로 상향
 0.0.2 Overlay 권한 요청 추가
 0.0.1 초기버전
